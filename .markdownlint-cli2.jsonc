@@ -1,6 +1,10 @@
 {
   "config": {
-    "MD013": false // line length — specs and tables run long on purpose
+    "MD013": false, // line length — specs and tables run long on purpose
+    // duplicate headings are fine under *different* parents: the requirements
+    // template gives every "### Requirement n" its own "#### Acceptance criteria
+    // (EARS)" heading. Still flagged when two siblings collide.
+    "MD024": { "siblings_only": true }
   },
   "ignores": ["**/node_modules/**", ".venv/**"]
 }
