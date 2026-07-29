@@ -1,8 +1,8 @@
 ---
 type: execution-log
 workItem: "github:MadaraUchiha-314/devbox#2"
-phase: needs-review
-status: in-progress
+phase: complete
+status: complete
 ---
 
 # Execution Log: devbox setup script (`scripts/setup.sh`)
@@ -15,14 +15,14 @@ status: in-progress
 
 ## Phase transitions
 
-| Phase                   | Entered           | Reviewed/approved by | Notes                                                                                                                                      |     |
-|-------------------------|-------------------|----------------------|--------------------------------------------------------------------------------------------------------------------------------------------|-----|
-| requirements-definition | 2026-07-29T05:28Z | @MadaraUchiha-314    | Approved 05:37Z ([comment](https://github.com/MadaraUchiha-314/devbox/issues/2#issuecomment-5113670469)); all 3 assumptions accepted as-is |     |
-| design                  | 2026-07-29T05:41Z | @MadaraUchiha-314    | Approved 05:43Z ([comment](https://github.com/MadaraUchiha-314/devbox/issues/2#issuecomment-5113706629))                                   |     |
-| tasks-breakdown         | 2026-07-29T05:45Z | n/a (no human node)  | 8-task DAG derived; pins resolved                                                                                                          |     |
-| implementation          | 2026-07-29T05:47Z |                      | All 8 tasks complete; 27 tests green; CI gate green                                                                                        |     |
-| needs-review            | 2026-07-29T16:05Z |                      | self x1, critic x1, security x1; 1 security finding fixed                                                                                  |     |
-| complete                |                   |                      |                                                                                                                                            |     |
+| Phase                   | Entered           | Reviewed/approved by | Notes                                                                                                                                      |     |     |
+|-------------------------|-------------------|----------------------|--------------------------------------------------------------------------------------------------------------------------------------------|-----|-----|
+| requirements-definition | 2026-07-29T05:28Z | @MadaraUchiha-314    | Approved 05:37Z ([comment](https://github.com/MadaraUchiha-314/devbox/issues/2#issuecomment-5113670469)); all 3 assumptions accepted as-is |     |     |
+| design                  | 2026-07-29T05:41Z | @MadaraUchiha-314    | Approved 05:43Z ([comment](https://github.com/MadaraUchiha-314/devbox/issues/2#issuecomment-5113706629))                                   |     |     |
+| tasks-breakdown         | 2026-07-29T05:45Z | n/a (no human node)  | 8-task DAG derived; pins resolved                                                                                                          |     |     |
+| implementation          | 2026-07-29T05:47Z |                      | All 8 tasks complete; 27 tests green; CI gate green                                                                                        |     |     |
+| needs-review            | 2026-07-29T16:05Z |                      | self x1, critic x1, security x1; 1 security finding fixed                                                                                  |     |     |
+| complete                | 2026-07-29T16:18Z | @MadaraUchiha-314    | Re-confirmed after the security fix; PR #3 merged                                                                                          |     |     |
 
 ## Pull requests
 
@@ -151,6 +151,18 @@ status: in-progress
   Re-confirmation requested on the PR.
 - **Next:** on re-confirmation → merge PR #3, close issue #2, advance to `complete`.
 - **Blockers:** human re-confirmation of PR #3 (`human-approval` node, actor: human).
+
+### 2026-07-29T16:18Z — Re-confirmed and completed
+
+- **Phase:** complete
+- **Did:** @MadaraUchiha-314 re-confirmed PR #3 with `approved` at 16:16Z — this time
+  against the post-security-fix diff and the full R10 briefing, so it stands as the
+  tier-3 `human-approves-pr` sign-off. Captured two learnings (001: a confidently-worded
+  comment hides the gap it describes; 002: open the PR as a draft until the review gates
+  finish). Merged PR #3, which closes issue #2.
+- **Checkpoint/tests:** CI green on the merge commit; 29 tests; full pre-push gate green.
+- **Next:** none — work item complete.
+- **Blockers:** none.
 
 ## Review cycles
 
