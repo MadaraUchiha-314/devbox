@@ -2,8 +2,8 @@
 type: requirements
 phase: requirements-definition
 workItem: "github:MadaraUchiha-314/devbox#2"
-status: in-review           # draft | in-review | approved
-approvedBy: []              # handles/roles who approved this phase (paper trail)
+status: approved            # draft | in-review | approved
+approvedBy: ["@MadaraUchiha-314"]   # approved 2026-07-29T05:37Z (issue #2 comment 5113670469)
 collaborators: [engineer, reviewer, approver]
 riskTier: 3                 # executes vendor install scripts on the operator's own machine, no privileged/system-wide writes
 overrides: {}
