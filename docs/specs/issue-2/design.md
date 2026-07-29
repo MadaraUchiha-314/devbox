@@ -2,8 +2,8 @@
 type: design
 phase: design
 workItem: "github:MadaraUchiha-314/devbox#2"
-status: in-review           # draft | in-review | approved
-approvedBy: []
+status: approved            # draft | in-review | approved
+approvedBy: ["@MadaraUchiha-314"]   # approved 2026-07-29T05:43Z (issue #2 comment 5113706629)
 overrides: {}
 ---
 
@@ -123,14 +123,19 @@ the hardening lives in exactly one place and a test can assert there is no secon
 ```bash
 curl --fail --location --proto '=https' --tlsv1.2 \
      --silent --show-error "$url" -o "$WORKDIR/installer.sh"
-bash "$WORKDIR/installer.sh" "$@"
+"${BASH}" "$WORKDIR/installer.sh" "$@"
 ```
 
 - `--fail` — a 4xx/5xx becomes a non-zero exit instead of an HTML error page executed as
   a shell script.
 - `--proto '=https'` — redirects may not downgrade off HTTPS.
-- `-o <file>` then `bash <file>` — **download completes before anything runs**, so a
+- `-o <file>` then run `<file>` — **download completes before anything runs**, so a
   truncated stream cannot execute a half payload (abuse case 3).
+- `"${BASH}"` — the interpreter *already running this script*, not a `PATH` lookup of
+  `bash`. **Implementation delta** (2026-07-29, task 4): the design originally said
+  `bash <file>`; a test that ran the script with no `bash` on `PATH` exposed that as a
+  lookup against one of the untrusted inputs named in the threat model. Locked in by
+  `test_installer_runs_under_the_current_interpreter`.
 
 ### Tool operations
 
