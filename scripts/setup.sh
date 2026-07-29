@@ -55,6 +55,8 @@ readonly NVM_INSTALLER_URL UV_INSTALLER_URL BUN_INSTALLER_URL TOOLS
 # same run. The operator's shell profiles are never touched — the vendor installers
 # already append their own lines, and a second writer is how rc files rot.
 
+: "${HOME:?HOME is not set — this script installs into your home directory}"
+
 export NVM_DIR="${NVM_DIR:-${HOME}/.nvm}"
 export BUN_INSTALL="${BUN_INSTALL:-${HOME}/.bun}"
 PATH="${HOME}/.local/bin:${BUN_INSTALL}/bin:${PATH}"
@@ -68,7 +70,6 @@ INSTALLED_ANY=0
 # --- Output ---------------------------------------------------------------------------
 
 log() { printf '==> %s\n' "$*"; }
-warn() { printf 'warning: %s\n' "$*" >&2; }
 
 die() {
     printf 'error: %s\n' "$*" >&2
@@ -94,8 +95,7 @@ usage_error() {
     exit 2
 }
 
-record() { SUMMARY="${SUMMARY}${1}|${2}|${3}
-"; }
+record() { SUMMARY="${SUMMARY}${1}|${2}|${3}"$'\n'; }
 
 # --- Temp directory -------------------------------------------------------------------
 #
@@ -250,7 +250,9 @@ install_bun() { fetch_and_run "${BUN_INSTALLER_URL}" "${BUN_VERSION}"; }
 install_python3() {
     detect_uv || die "cannot install python3: uv is not available (it is python3's installer)"
     log "installing CPython ${PYTHON_VERSION} via uv"
-    uv python install --default "${PYTHON_VERSION}"
+    if ! uv python install --default "${PYTHON_VERSION}"; then
+        die "uv could not install python3 (uv $(version_uv)): 'uv python install --default' needs a recent uv, and an already-installed uv is never upgraded by this script. Run 'uv self update' and re-run."
+    fi
 }
 
 install_node() {

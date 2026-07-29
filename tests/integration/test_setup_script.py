@@ -315,6 +315,23 @@ def test_refuses_to_run_as_root(sandbox: Sandbox) -> None:
     assert "root" in result.stderr.lower()
 
 
+def test_fails_closed_when_home_is_unset(sandbox: Sandbox) -> None:
+    """
+    Requirement: docs/specs/issue-2/requirements.md#R1
+
+    Scenario: A missing HOME is named, not stumbled over
+        Given a machine where HOME is empty
+        When the script is run
+        Then it exits non-zero and says HOME is not set
+
+    Without the guard this fails deep inside `${NVM_DIR:-${HOME}/.nvm}` under `set -u`,
+    which tells the operator nothing useful.
+    """
+    result = sandbox.run("--dry-run", env={"HOME": ""})
+    assert result.returncode != 0
+    assert "HOME" in result.stderr
+
+
 def test_fails_closed_when_curl_is_missing(sandbox: Sandbox) -> None:
     """
     Requirement: docs/specs/issue-2/requirements.md#R1
