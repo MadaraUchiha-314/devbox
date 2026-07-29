@@ -35,7 +35,7 @@ webhooks:
     # never arrives and its session is never closed — the receiver warns if so.
     events: []
     routing:
-      enabled: false                # route events to registered harness sessions
+      enabled: true                 # route events to registered harness sessions
       registryDir: .the-loop/sessions
       defaultHarness: claude        # claude | cursor
       spawnOnUnmatched: labeled     # never | always | labeled
@@ -59,19 +59,19 @@ webhooks:
       # anyone else are ignored. REQUIRED: no fallback to any repo's plugin config —
       # empty means human-authored events are all ignored (fail closed). Run your own
       # instance for your own login(s).
-      authorizedUsers: []           # e.g. ["your-github-login"]
+      authorizedUsers: ["MadaraUchiha-314"]   # events authored by anyone else are ignored
       spawnWorkdir: "."             # used only when workspace.root is unset (below)
       # Per-work-item checkout workspace (issue-76): when `root` is set, each event's
       # repo is checked out under the root and the spawned session runs there (instead
       # of spawnWorkdir), cleaned up when the PR merges/closes. Empty root => legacy
       # spawnWorkdir. Auth is your own git credentials (e.g. `gh auth setup-git`).
       workspace:
-        root: ""                    # e.g. ~/.the-loop/workspace (empty = disabled)
+        root: "~/.the-loop/workspace"   # per-work-item checkouts live here
         # worktree: shared clone per repo + a git worktree per work item (cheap, shares objects).
         # clone: one folder per work item with a full clone of each repo it touches
         #        (self-contained, simpler for multi-repo work items; a full clone per item).
         strategy: worktree          # worktree | clone
-        cloneProtocol: https        # https | ssh
+        cloneProtocol: ssh          # https | ssh — matches your `gh auth` git protocol (ssh)
         defaultHost: github.com     # host dir when the payload has no html_url (set to your GHE domain)
         keepCheckoutOnClose: false  # keep the work item's checkout after PR close (for post-mortem)
         gitBinary: git
@@ -157,14 +157,14 @@ webhooks:
 polling:
   intervalSeconds: 60               # seconds between poll cycles (all sources)
   stateFile: .the-loop/sessions/poll-state.json   # session tracking, under state.root
-  sources: []                       # e.g. the github source below (empty = nothing polled)
-    # - provider: github
-    #   repos: []                   # REQUIRED: OWNER/REPO list — no fallback to any
-    #                               # repo's harness (plugin) config; a source with none discovers nothing
-    #   monitor:
-    #     issues: true
-    #     pullRequests: true
-    #   label: ""                   # empty = reuse routing.autoExecuteLabel above
+  sources:
+    - provider: github
+      repos: ["MadaraUchiha-314/devbox"]   # REQUIRED: OWNER/REPO list — no fallback to any
+                                           # repo's harness (plugin) config
+      monitor:
+        issues: true
+        pullRequests: true
+      label: ""                   # empty = reuse routing.autoExecuteLabel above
 
 eventLog:                           # structured JSONL o11y trail; `the-loop events`
   enabled: true
