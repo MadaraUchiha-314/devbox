@@ -216,3 +216,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# the-loop CLI runtime state (session registry, poll state, event log) — not source
+.the-loop/sessions/
+.the-loop/logs/
+.the-loop/*.pid
