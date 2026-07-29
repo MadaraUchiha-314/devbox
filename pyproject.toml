@@ -1,0 +1,28 @@
+[project]
+name = "devbox"
+version = "0.0.0"
+description = "devbox"
+requires-python = ">=3.11"
+dependencies = []
+
+[dependency-groups]
+dev = ["commitizen", "pre-commit", "pytest", "pyright", "ruff"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.pyright]
+include = ["src", "tests"]
+
+[tool.ruff]
+target-version = "py311"
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+version = "0.0.0"
+version_files = ["pyproject.toml:^version"]
+tag_format = "v$version"
+update_changelog_on_bump = true

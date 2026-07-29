@@ -1,0 +1,54 @@
+# Quality gates from .the-loop/harness-config.yaml (hooks.preCommit / hooks.prePush:
+# lint, typecheck, unit-test; commitConvention: conventional-commits).
+# CI runs these SAME hooks (.github/workflows/ci.yml) — one definition, no drift.
+# Python hooks are scoped to *.py, so they no-op until Python code exists.
+
+repos:
+  - repo: local
+    hooks:
+      - id: ruff
+        name: lint (ruff)
+        entry: uv run ruff check --fix
+        language: system
+        types_or: [python, pyi]
+        stages: [pre-commit, pre-push]
+
+      - id: ruff-format
+        name: format (ruff)
+        entry: uv run ruff format
+        language: system
+        types_or: [python, pyi]
+        stages: [pre-commit, pre-push]
+
+      - id: pyright
+        name: typecheck (pyright)
+        entry: uv run pyright
+        language: system
+        types_or: [python, pyi]
+        pass_filenames: false
+        stages: [pre-commit, pre-push]
+
+      - id: pytest
+        name: unit-test (pytest)
+        entry: uv run pytest -q
+        language: system
+        types_or: [python, pyi]
+        pass_filenames: false
+        stages: [pre-commit, pre-push]
+
+      # `cz commit` writes them, `cz check` enforces them, `cz bump` reads them for
+      # semver + CHANGELOG. Config in pyproject.toml [tool.commitizen].
+      - id: commitizen
+        name: commit message (Conventional Commits)
+        entry: uv run cz check --commit-msg-file
+        language: system
+        stages: [commit-msg]
+
+      # npx, not pre-commit's node hook: nodeenv downloads its own node and fails on
+      # this machine's Python cert store (SSL: CERTIFICATE_VERIFY_FAILED).
+      - id: markdownlint
+        name: lint (markdown)
+        entry: npx --yes markdownlint-cli2
+        language: system
+        types: [markdown]
+        stages: [pre-commit, pre-push]

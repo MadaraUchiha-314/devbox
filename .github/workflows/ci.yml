@@ -1,0 +1,18 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      # Same hook definitions as local pre-commit/pre-push. RULE: CI uses exactly
+      # the same tooling as local (.the-loop/harness-config.yaml, tooling.*).
+      - run: uv run pre-commit run --all-files --hook-stage pre-push --show-diff-on-failure

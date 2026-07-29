@@ -1,0 +1,31 @@
+# .the-loop/collaborators.yaml
+# Validated against .the-loop/collaborators.schema.json.
+#
+# The stewards of the repository (CODEOWNERS-like) and the SINGLE source of truth
+# for who collaborates on this project and how they are notified (issue-82,
+# decision-035). Collaborators may be individuals or groups; a user can hold
+# multiple roles. All collaboration happens through ticket/PR comments (the paper
+# trail); the channels below are the primary way the agent harness NOTIFIES a
+# collaborator that their action is pending — never where decisions land.
+#
+# Which events notify which roles is configured in harness-config.yaml
+# (notifications.events). The CLI daemon never reads this file: the operator
+# declares their own recipients, in this same structure, in cli-config.yaml.
+
+version: "0.1.0"
+
+collaborators:
+  - handle: "@MadaraUchiha-314"
+    kind: individual
+    roles: [product-manager, architect, designer, engineer, qa, reviewer, approver]
+    # No notifications block = no out-of-band pings (chosen at init). Every decision
+    # still lands as a GitHub issue/PR comment — that is the paper trail. To add
+    # Slack later:
+    # notifications:
+    #   enabled: true
+    #   channels:
+    #     - type: slack
+    #       enabled: true
+    #       via: mcp                # mcp | cli | api
+    #       config:
+    #         channel-list: ["#devbox"]
