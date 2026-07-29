@@ -1,7 +1,7 @@
 ---
 type: execution-log
 workItem: "github:MadaraUchiha-314/devbox#2"
-phase: implementation
+phase: needs-review
 status: in-progress
 ---
 
@@ -15,20 +15,20 @@ status: in-progress
 
 ## Phase transitions
 
-| Phase                   | Entered           | Reviewed/approved by | Notes                                                                                                                                      |
-|-------------------------|-------------------|----------------------|--------------------------------------------------------------------------------------------------------------------------------------------|
-| requirements-definition | 2026-07-29T05:28Z | @MadaraUchiha-314    | Approved 05:37Z ([comment](https://github.com/MadaraUchiha-314/devbox/issues/2#issuecomment-5113670469)); all 3 assumptions accepted as-is |
-| design                  | 2026-07-29T05:41Z | @MadaraUchiha-314    | Approved 05:43Z ([comment](https://github.com/MadaraUchiha-314/devbox/issues/2#issuecomment-5113706629))                                   |
-| tasks-breakdown         | 2026-07-29T05:45Z | n/a (no human node)  | 8-task DAG derived; pins resolved                                                                                                          |
-| implementation          | 2026-07-29T05:47Z |                      | All 8 tasks complete; 27 tests green; CI gate green                                                                                        |
-| needs-review            |                   |                      |                                                                                                                                            |
-| complete                |                   |                      |                                                                                                                                            |
+| Phase                   | Entered           | Reviewed/approved by | Notes                                                                                                                                      |     |
+|-------------------------|-------------------|----------------------|--------------------------------------------------------------------------------------------------------------------------------------------|-----|
+| requirements-definition | 2026-07-29T05:28Z | @MadaraUchiha-314    | Approved 05:37Z ([comment](https://github.com/MadaraUchiha-314/devbox/issues/2#issuecomment-5113670469)); all 3 assumptions accepted as-is |     |
+| design                  | 2026-07-29T05:41Z | @MadaraUchiha-314    | Approved 05:43Z ([comment](https://github.com/MadaraUchiha-314/devbox/issues/2#issuecomment-5113706629))                                   |     |
+| tasks-breakdown         | 2026-07-29T05:45Z | n/a (no human node)  | 8-task DAG derived; pins resolved                                                                                                          |     |
+| implementation          | 2026-07-29T05:47Z |                      | All 8 tasks complete; 27 tests green; CI gate green                                                                                        |     |
+| needs-review            | 2026-07-29T16:05Z |                      | self x1, critic x1, security x1; 1 security finding fixed                                                                                  |     |
+| complete                |                   |                      |                                                                                                                                            |     |
 
 ## Pull requests
 
-| PR                                                  | Scope / tasks | Status |
-|-----------------------------------------------------|---------------|--------|
-| _(none yet — opened once the spec chain is locked)_ |               |        |
+| PR                                                      | Scope / tasks                                                             | Status |
+|---------------------------------------------------------|---------------------------------------------------------------------------|--------|
+| [#3](https://github.com/MadaraUchiha-314/devbox/pull/3) | Whole work item — spec chain, `scripts/setup.sh`, tests, docs (tasks 1–8) | open   |
 
 ## Progress entries
 
@@ -135,21 +135,80 @@ status: in-progress
 
 ## Review cycles
 
-| Cycle | Type (self/critic/security) | Reviewer | Outcome | Link |
-|-------|-----------------------------|----------|---------|------|
-|       |                             |          |         |      |
+| Cycle | Type     | Reviewer                                                  | Outcome                                                                                                                                                          | Link                                                                |
+|-------|----------|-----------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------|
+| 1     | self     | claude/opus-5                                             | 4 findings, all fixed: dead `warn()`, unguarded `HOME`, literal newline in `record()`, opaque failure when an old uv lacks `uv python install --default`         | [commit](https://github.com/MadaraUchiha-314/devbox/commit/379af52) |
+| 2     | self     | claude/opus-5                                             | 0 new findings — stopped early per `reviews.stopOnNoNewFindings` (cap is 2)                                                                                      | —                                                                   |
+| 3     | critic   | claude/opus-5 (adversarial pass)                          | `reviews.critics` is empty — no second harness/model is configured for this repo, so no independent critic ran. Recorded honestly rather than claimed.           | PR #3                                                               |
+| 4     | security | security-review skill (`security.review.mechanism: auto`) | **1 MEDIUM finding, fixed**: `--proto '=https'` does not constrain redirects; added `--proto-redir '=https'`. Everything else assessed and cleared with reasons. | PR #3                                                               |
 
 ## Security review (gate)
 
-- **Mechanism:** _pending_ (`security.review.mechanism: auto` → built-in security-review
-  skill when available, else the-loop checklist)
-- **Outcome:** _pending_
-- **Human sign-off:** n/a — risk tier 3 is below `security.review.humanSignOffMinTier` (4)
+- **Mechanism:** the harness's built-in **security-review skill**
+  (`security.review.mechanism: auto` resolved to the skill, not the fallback checklist).
+- **Outcome:** **pass, after one fix.** One MEDIUM finding — _TLS downgrade on redirect,
+  `scripts/setup.sh:140`_: the chokepoint pinned the initial request with
+  `--proto '=https'` but left redirects on curl's default (`http` permitted), and the
+  pinned installer URLs are redirectors, so a single plaintext hop would have been
+  fetched and executed. Fixed by adding `--proto-redir '=https'`; the inaccurate claim in
+  `design.md` was corrected in the same commit, and
+  `test_https_is_enforced_on_redirects_too` stops it regressing. Verified all three
+  vendor URLs still return 200 under the stricter flags.
+- **Cleared with reasons** (coverage auditable, not implied): `--only` injection
+  (allow-list before use, never interpolated); executing vendor installers (the work
+  item's stated purpose, residual risk accepted in `requirements.md`); env-var influence
+  on `NVM_DIR`/`HOME`/`PATH` (trusted inputs in this threat model); `rm -rf "$WORKDIR"`
+  in the EXIT trap (assigned only from `mktemp -d`, guarded on `-n` and `-d`); no
+  checksum verification (documented, accepted, only meaningful against an immutable
+  artefact).
+- **Human sign-off:** n/a — risk tier 3 is below `security.review.humanSignOffMinTier` (4).
 
 ## Capability docs
 
-- _pending_ — assessed at the capability-docs gate.
+- **Minted** `docs/capabilities/devbox-provisioning.md` (first touch of this capability)
+  and added its row to `docs/capabilities/capabilities.md` — both in PR #3, the same PR
+  as the behaviour change, per the fold-in gate.
 
 ## Final validation evidence
 
-_Pending._
+All four requirements demonstrated, on this machine and in the suite.
+
+**R1 / R2 — real run on this devbox** (`./scripts/setup.sh`, exit `0`). This box already
+has all six tools, so the run is simultaneously the acceptance proof and the idempotency
+proof (R2.2):
+
+```text
+==> uv: already present
+==> python3: already present
+==> nvm: already present
+==> node: already present
+==> npm: already present
+==> bun: already present
+
+TOOL      VERSION                  STATUS
+uv        0.7.12                   already present
+python3   3.11.3                   already present
+nvm       0.39.3                   already present
+node      v20.20.0                 already present
+npm       10.8.2                   already present
+bun       1.3.9                    already present
+
+Nothing to do — this box is already provisioned.
+```
+
+Nothing was installed, nothing under `$HOME` changed, and no shell profile was touched.
+
+**R3 — `--dry-run`** produces the same six-line plan and exits `0` having written
+nothing; `--help`, `--only` and the fail-closed paths are covered below.
+
+**R4 — output format** is asserted by the summary-shape scenarios.
+
+**Suite:** `uv run pytest tests/integration -q` → **29 passed**, all offline (PATH
+sandbox; no scenario reaches the network).
+
+**CI-equivalent gate:** `uv run pre-commit run --all-files --hook-stage pre-push` →
+ruff lint · ruff format · pyright · pytest · markdownlint, all **Passed** — the exact
+command `.github/workflows/ci.yml` runs.
+
+**Vendor URLs re-verified** under the hardened flags
+(`--proto '=https' --proto-redir '=https'`): all three return HTTP 200.

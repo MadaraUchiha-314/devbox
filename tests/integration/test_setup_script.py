@@ -149,6 +149,24 @@ def test_single_curl_invocation(script_source: str) -> None:
     assert "curl" in code and "| bash" not in code and "| sh" not in code
 
 
+def test_https_is_enforced_on_redirects_too(script_source: str) -> None:
+    """
+    Requirement: docs/specs/issue-2/requirements.md#security-considerations (boundary 1)
+
+    Scenario: No hop of a redirect chain may fall back to plaintext
+        Given the script source
+        When the curl invocation is inspected
+        Then it constrains both the request and its redirects to https
+
+    Found by the security-review gate: `--proto` governs the *initial* request only.
+    Redirects are governed by `--proto-redir`, whose curl default permits http — and
+    these installer URLs are redirectors, so the downgrade path was reachable.
+    """
+    code = executable_lines(script_source)
+    assert "--proto '=https'" in code, "initial request is not pinned to https"
+    assert "--proto-redir '=https'" in code, "redirects may downgrade to plaintext"
+
+
 def test_installer_runs_under_the_current_interpreter(script_source: str) -> None:
     """
     Requirement: docs/specs/issue-2/requirements.md#security-considerations (boundary 3)

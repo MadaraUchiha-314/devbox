@@ -123,8 +123,11 @@ ensure_workdir() {
 # hardening lives in exactly one place:
 #
 #   --fail          a 404's HTML body is an error, not a shell script to execute
-#   --proto '=https'  a redirect may not downgrade the connection to plaintext
-#   -o then bash    the download COMPLETES before anything runs, so a dropped
+#   --proto         the request itself may only be HTTPS
+#   --proto-redir   ...and so may every hop it is redirected through. --proto alone
+#                   does NOT cover redirects; curl's default allows http there, and
+#                   these installer URLs (astral.sh especially) ARE redirectors.
+#   -o then run     the download COMPLETES before anything runs, so a dropped
 #                   connection cannot execute half an installer
 #   "${BASH}"       the interpreter already running this script, not whatever a
 #                   poisoned PATH resolves `bash` to
@@ -137,8 +140,8 @@ fetch_and_run() {
     installer="${WORKDIR}/installer.sh"
 
     log "downloading ${url}"
-    curl --fail --location --proto '=https' --tlsv1.2 --silent --show-error \
-        "${url}" -o "${installer}"
+    curl --fail --location --proto '=https' --proto-redir '=https' --tlsv1.2 \
+        --silent --show-error "${url}" -o "${installer}"
 
     log "running installer from ${installer}"
     "${BASH}" "${installer}" "$@"

@@ -121,14 +121,19 @@ Every byte of third-party code the script executes passes through this one funct
 the hardening lives in exactly one place and a test can assert there is no second path:
 
 ```bash
-curl --fail --location --proto '=https' --tlsv1.2 \
+curl --fail --location --proto '=https' --proto-redir '=https' --tlsv1.2 \
      --silent --show-error "$url" -o "$WORKDIR/installer.sh"
 "${BASH}" "$WORKDIR/installer.sh" "$@"
 ```
 
 - `--fail` — a 4xx/5xx becomes a non-zero exit instead of an HTML error page executed as
   a shell script.
-- `--proto '=https'` — redirects may not downgrade off HTTPS.
+- `--proto '=https'` — the request itself may only be HTTPS.
+- `--proto-redir '=https'` — **and so may every redirect hop.** `--proto` alone does
+  *not* cover redirects; curl's default permits `http` there, and these installer URLs
+  (astral.sh especially) are redirectors. **Security-review finding**, fixed 2026-07-29 —
+  the original design asserted a guarantee the single flag did not provide. Locked in by
+  `test_https_is_enforced_on_redirects_too`.
 - `-o <file>` then run `<file>` — **download completes before anything runs**, so a
   truncated stream cannot execute a half payload (abuse case 3).
 - `"${BASH}"` — the interpreter *already running this script*, not a `PATH` lookup of
@@ -184,16 +189,16 @@ not an array of maps) and printed once at the end. `status` is a closed set:
 
 ## Error handling
 
-| Failure                                  | Detection                                       | Response                                      |
-|------------------------------------------|-------------------------------------------------|-----------------------------------------------|
-| Unknown flag / unknown `--only`          | Arg parse against a fixed allow-list            | Usage → stderr, **exit 2**, nothing installed |
-| Running as root                          | `[ "$(id -u)" -eq 0 ]`                          | `die` → exit 1, before any network access     |
-| `curl` absent                            | `command -v curl` in preflight                  | `die` naming curl → exit 1                    |
-| Unsupported OS/arch                      | `uname -s` / `uname -m` against a supported set | `die` naming the platform → exit 1            |
-| Download failure / non-2xx / TLS failure | `curl --fail --proto '=https'` non-zero         | `set -e` aborts; installer never executed     |
-| Vendor installer fails                   | Non-zero exit, output **passed through** (R4.2) | Abort at that tool; later tools not attempted |
-| Post-install verification fails          | `detect` still false after `install`            | `die` naming the tool → exit 1 (R1.4)         |
-| Interrupt / any exit                     | `trap … EXIT`                                   | Temp dir removed                              |
+| Failure                                  | Detection                                                      | Response                                      |
+|------------------------------------------|----------------------------------------------------------------|-----------------------------------------------|
+| Unknown flag / unknown `--only`          | Arg parse against a fixed allow-list                           | Usage → stderr, **exit 2**, nothing installed |
+| Running as root                          | `[ "$(id -u)" -eq 0 ]`                                         | `die` → exit 1, before any network access     |
+| `curl` absent                            | `command -v curl` in preflight                                 | `die` naming curl → exit 1                    |
+| Unsupported OS/arch                      | `uname -s` / `uname -m` against a supported set                | `die` naming the platform → exit 1            |
+| Download failure / non-2xx / TLS failure | `curl --fail --proto '=https' --proto-redir '=https'` non-zero | `set -e` aborts; installer never executed     |
+| Vendor installer fails                   | Non-zero exit, output **passed through** (R4.2)                | Abort at that tool; later tools not attempted |
+| Post-install verification fails          | `detect` still false after `install`                           | `die` naming the tool → exit 1 (R1.4)         |
+| Interrupt / any exit                     | `trap … EXIT`                                                  | Temp dir removed                              |
 
 `set -euo pipefail` is the backstop: an unset variable or an unchecked failure aborts the
 run rather than continuing into a half-provisioned state. Observability is the same at
@@ -207,13 +212,13 @@ it. Mechanisms, not intentions.
 
 ### Boundary 1 — network → local execution
 
-| Control                    | Implementation                                                                                                        | Proven by                                       |
-|----------------------------|-----------------------------------------------------------------------------------------------------------------------|-------------------------------------------------|
-| HTTPS only                 | `--proto '=https'` (redirects included), all URLs literal `https://`                                                  | `test_all_urls_are_https_and_vendor_hosted`     |
-| Official vendor hosts only | URL constants in the Pins block; host allow-list `raw.githubusercontent.com` (nvm-sh/nvm path), `bun.sh`, `astral.sh` | same test, asserted over the script **source**  |
-| Pinned versions            | Tag/version-scoped URLs; bun version as installer arg                                                                 | `test_installer_urls_are_version_pinned`        |
-| No partial execution       | Download to `$WORKDIR` **then** `bash <file>`                                                                         | `test_failed_download_aborts_without_executing` |
-| Single chokepoint          | Exactly one `curl` invocation in the script                                                                           | asserted by source test (no second fetch path)  |
+| Control                        | Implementation                                                                                                        | Proven by                                                                              |
+|--------------------------------|-----------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------|
+| HTTPS only, redirects included | `--proto '=https'` **and** `--proto-redir '=https'`; all URLs literal `https://`                                      | `test_all_urls_are_https_and_vendor_hosted`, `test_https_is_enforced_on_redirects_too` |
+| Official vendor hosts only     | URL constants in the Pins block; host allow-list `raw.githubusercontent.com` (nvm-sh/nvm path), `bun.sh`, `astral.sh` | same test, asserted over the script **source**                                         |
+| Pinned versions                | Tag/version-scoped URLs; bun version as installer arg                                                                 | `test_installer_urls_are_version_pinned`                                               |
+| No partial execution           | Download to `$WORKDIR` **then** `bash <file>`                                                                         | `test_failed_download_aborts_without_executing`                                        |
+| Single chokepoint              | Exactly one `curl` invocation in the script                                                                           | asserted by source test (no second fetch path)                                         |
 
 ### Boundary 2 — arguments → control flow
 
