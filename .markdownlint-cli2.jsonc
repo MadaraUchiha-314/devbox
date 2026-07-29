@@ -1,0 +1,6 @@
+{
+  "config": {
+    "MD013": false // line length — specs and tables run long on purpose
+  },
+  "ignores": ["**/node_modules/**", ".venv/**"]
+}
