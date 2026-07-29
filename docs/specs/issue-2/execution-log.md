@@ -133,6 +133,25 @@ status: in-progress
    "Acceptance criteria (EARS)" heading), and `.gitignore` for the-loop's CLI runtime
    state (`.the-loop/sessions/`, `.the-loop/logs/`), which had been landing in commits.
 
+### 2026-07-29T16:10Z — Review gates complete; PR #3 awaiting re-confirmation
+
+- **Phase:** needs-review
+- **Did:** Ran the review phase in order — self-review (4 findings, all fixed),
+  critic-review (recorded as not-run: `reviews.critics` is empty for this repo), and the
+  **security-review gate**, which found one MEDIUM issue and blocked completion until it
+  was fixed: `--proto '=https'` does not constrain redirects, and the pinned installer
+  URLs are redirectors, so a plaintext hop would have been fetched and executed. Fixed in
+  `47fab8a`, `design.md`'s inaccurate claim corrected alongside it. Posted the security
+  round and the R10 reviewer briefing on PR #3.
+- **Checkpoint/tests:** 29 passed; full pre-push gate green; **CI green on PR #3**; all
+  three vendor URLs still 200 under the hardened flags.
+- **Ordering note (paper trail):** @MadaraUchiha-314 commented `approved` on PR #3 at
+  16:01Z — _before_ the security gate ran. The approval therefore predates a real change
+  to the reviewed diff, so it was not treated as the tier-3 `human-approves-pr` sign-off.
+  Re-confirmation requested on the PR.
+- **Next:** on re-confirmation → merge PR #3, close issue #2, advance to `complete`.
+- **Blockers:** human re-confirmation of PR #3 (`human-approval` node, actor: human).
+
 ## Review cycles
 
 | Cycle | Type     | Reviewer                                                  | Outcome                                                                                                                                                          | Link                                                                |
