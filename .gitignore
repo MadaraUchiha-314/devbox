@@ -220,4 +220,7 @@ __marimo__/
 # the-loop CLI runtime state (session registry, poll state, event log) — not source
 .the-loop/sessions/
 .the-loop/logs/
+.the-loop/local/
+.the-loop/portable/
+.the-loop/poll-status.json
 .the-loop/*.pid

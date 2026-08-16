@@ -265,7 +265,16 @@ service:
                                # resurrects implicitly; issue-228)
   mcp:
     enabled: true              # mount the MCP endpoint at /mcp (false = REST only)
-  hostIngresses: true          # single-process mode (issue-231): the enabled poller
+  # Server-push stream (issue-239): GET /api/v1/stream, text/event-stream — a READ
+  # surface over the same records /api/v1/events serves, held open so the control
+  # plane re-renders on change instead of on a timer. Governed by `cors` below.
+  stream:
+    enabled: true              # false = 404, no tailer (REST-only), like mcp.enabled
+    maxSubscribers: 8          # beyond this the service answers 503, so an open
+                               # dashboard cannot starve the REST surface
+    keepAliveSeconds: 15       # SSE keep-alive on idle connections
+  hostIngresses: false         # poller runs as its own daemon, not inside the service
+                               # single-process mode (issue-231): the enabled poller
                                # and webhook receiver run inside the service process;
                                # false = one process per service (the issue-228 split)
   # Which browser ORIGINS may READ this service's responses (issue-211,
@@ -287,6 +296,25 @@ service:
 eventLog:                           # structured JSONL o11y trail; `the-loop events`
   enabled: true
   path: .the-loop/logs/events.jsonl
+
+# Self-diagnosis (issue-242): when the-loop's OWN machinery fails (error-level
+# events, terminal give-ups in the event log), debug the failure in an isolated
+# agent one-shot and file the findings on the-loop's repo, labeled
+# `the-loop: self-diagnosed`. STRICTLY OPT-IN, default off — enabling it means
+# this machine may post redacted failure reports publicly with your gh
+# credentials. Everything posted is allow-listed + scrubbed, and a self-filed
+# issue is never armed (no auto-execute label, no control keyword, self-authored
+# marker). Preview with `the-loop diagnose --dry-run` before flipping it on.
+selfDiagnosis:
+  enabled: true
+  repo: MadaraUchiha-314/the-loop        # where the issues are filed
+  label: "the-loop: self-diagnosed"
+  harness: claude                        # claude | cursor — runs the diagnosis one-shot
+  model: ""
+  timeoutSeconds: 900
+  intervalSeconds: 3600                  # watcher cadence inside the poller/gh-webhook daemons
+  maxIssuesPerDay: 5                     # rolling cap; excess candidates defer, never drop
+  maxRetries: 3                          # failed attempts per fingerprint before abandoning
 
 # The operator's own notification recipients (issue-82, decision-035) — the same
 # collaborator structure as .the-loop/collaborators.schema.json, DECLARED here:
