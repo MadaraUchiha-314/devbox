@@ -246,8 +246,9 @@ polling:
   intervalSeconds: 60               # seconds between poll cycles (all sources)
   sources:
     - provider: github
-      repos: ["MadaraUchiha-314/devbox"]   # REQUIRED: OWNER/REPO list — no fallback to any
-                                           # repo's harness (plugin) config
+      repos: ["MadaraUchiha-314/devbox", "MadaraUchiha-314/the-loop"]
+                                    # REQUIRED: OWNER/REPO list — no fallback to any
+                                    # repo's harness (plugin) config
       monitor:
         issues: true
         pullRequests: true
