@@ -4,7 +4,7 @@
 # what needs to be created or reconciled.
 
 manifestVersion: "0.1.0"
-theLoopVersion: "10.4.0"
+theLoopVersion: "11.3.0"
 
 # Files internal to the-loop (meta). These live under .the-loop/.
 meta:
