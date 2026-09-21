@@ -1,4 +1,4 @@
-version: 0.9.0
+version: 0.10.0
 state:
   root: .the-loop
 webhooks:
@@ -15,7 +15,6 @@ routing:
   registryDir: .the-loop/sessions
   defaultHarness: claude
   spawnOnUnmatched: labeled
-  autoExecuteLabel: 'the-loop: auto-execute'
   control:
     enabled: true
     requireStartCommand: true
@@ -71,6 +70,9 @@ routing:
     harnessKillGraceSeconds: 5
   announce:
     enabled: true
+  autoExecuteLabels:
+  - 'the-loop: auto-execute'
+  - 'the-loop: rr'
 standingSessions:
   enabled: false
   sessions: []
@@ -82,7 +84,6 @@ polling:
     monitor:
       issues: true
       pullRequests: true
-    label: ''
 service:
   enabled: true
   mcp:
@@ -133,15 +134,9 @@ channels:
 repositories:
 - MadaraUchiha-314/devbox
 - MadaraUchiha-314/the-loop
-
-# Review-round policy, moved from harness-config.yaml `reviews` (issue-352,
-# decision-123); the agent reads it back with `the-loop critic policy`.
 reviews:
-  selfReviewCount: 2              # cap; the loop stops early on zero new findings
-  criticReviewCount: 1            # cap; rounds with the critics[] below
-  stopOnNoNewFindings: true       # stop when a round finds nothing new actionable
-  escalateOnRepeatFinding: true   # same finding twice in a row -> escalate to a human
-
-# Critic harnesses (moved from harness-config.yaml `reviews.critics`, issue-352).
-# Executable configuration: review an entry like code.
+  selfReviewCount: 2
+  criticReviewCount: 1
+  stopOnNoNewFindings: true
+  escalateOnRepeatFinding: true
 critics: []
