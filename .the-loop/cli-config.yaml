@@ -44,11 +44,6 @@ routing:
   dispatchTimeoutSeconds: 1800
   promptTemplate: skills/the-loop/templates/webhook-event-prompt.md
   spawnPromptTemplate: skills/the-loop/templates/webhook-autoexecute-prompt.md
-  harnessArgs:
-    claude:
-    - --dangerously-skip-permissions
-    cursor:
-    - --force
   harnessTrust:
     enabled: true
     scope: workspace-root
@@ -72,7 +67,17 @@ routing:
     enabled: true
   autoExecuteLabels:
   - 'the-loop: auto-execute'
-  - 'the-loop: rr'
+harnesses:
+- name: codex
+  default: true
+  args:
+  - --dangerously-bypass-approvals-and-sandbox
+- name: claude
+  args:
+  - --dangerously-skip-permissions
+- name: cursor
+  args:
+  - --force
 standingSessions:
   enabled: false
   sessions: []
@@ -131,6 +136,7 @@ channels:
 repositories:
 - MadaraUchiha-314/devbox
 - MadaraUchiha-314/the-loop
+- MadaraUchiha-314/the-loop-testing
 reviews:
   selfReviewCount: 2
   criticReviewCount: 1
