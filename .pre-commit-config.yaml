@@ -48,7 +48,8 @@ repos:
       # this machine's Python cert store (SSL: CERTIFICATE_VERIFY_FAILED).
       - id: markdownlint
         name: lint (markdown)
-        entry: npx --yes markdownlint-cli2
+        entry: npx --yes markdownlint-cli2@0.23.3
         language: system
+        require_serial: true
         types: [markdown]
         stages: [pre-commit, pre-push]
