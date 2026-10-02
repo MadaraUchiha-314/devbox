@@ -1,4 +1,4 @@
-version: 0.10.0
+version: 0.11.0
 state:
   root: .the-loop
 webhooks:
@@ -120,14 +120,11 @@ selfDiagnosis:
   maxRetries: 3
 integrations:
   github:
-    transport: auto
     api:
       tokenEnv:
       - GH_TOKEN
       - GITHUB_TOKEN
       baseUrl: https://api.github.com
-    cli:
-      binary: gh
 channels:
   slack:
     enabled: false
