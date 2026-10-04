@@ -69,6 +69,7 @@ routing:
     enabled: true
   autoExecuteLabels:
   - 'the-loop: auto-execute'
+  - 'the-loop: rr'
 harnesses:
 - name: claude
   default: true
@@ -173,6 +174,7 @@ repositories:
 - MadaraUchiha-314/devbox
 - MadaraUchiha-314/the-loop
 - MadaraUchiha-314/the-loop-testing
+- MadaraUchiha-314/yaah
 reviews:
   selfReviewCount: 2
   criticReviewCount: 1
