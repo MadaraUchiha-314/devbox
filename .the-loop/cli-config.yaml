@@ -1,4 +1,6 @@
 version: 0.11.0
+env:
+  file: ~/.the-loop/the-loop.env
 state:
   root: .the-loop
 webhooks:
@@ -160,6 +162,7 @@ integrations:
   github:
     api:
       tokenEnv:
+      - THE_LOOP_GH_TOKEN
       - GH_TOKEN
       - GITHUB_TOKEN
       baseUrl: https://api.github.com
