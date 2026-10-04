@@ -68,16 +68,49 @@ routing:
   autoExecuteLabels:
   - 'the-loop: auto-execute'
 harnesses:
-- name: codex
-  default: true
-  args:
-  - --dangerously-bypass-approvals-and-sandbox
 - name: claude
+  default: true
+  defaultModel: claude-opus-5-5
   args:
   - --dangerously-skip-permissions
+- name: codex
+  defaultModel: gpt-6.1-sol
+  args:
+  - --dangerously-bypass-approvals-and-sandbox
 - name: cursor
+  defaultModel: gpt-6.1-sol
   args:
   - --force
+models:
+- name: claude-fable-5-1
+  harnesses: [claude]
+- name: claude-opus-5-5
+  harnesses: [claude]
+- name: claude-sonnet-5-5
+  harnesses: [claude]
+- name: claude-haiku-4-5-20251001
+  harnesses: [claude]
+- name: gpt-6.1-sol
+  harnesses: [codex, cursor]
+- name: gpt-6-sol
+  harnesses: [codex, cursor]
+- name: gpt-6-astra
+  harnesses: [codex, cursor]
+- name: gpt-6-luna
+  harnesses: [codex, cursor]
+- name: gpt-5.6-sol
+  harnesses: [codex, cursor]
+- name: gpt-5.6-terra
+  harnesses: [codex, cursor]
+- name: gpt-5.6-luna
+  harnesses: [codex, cursor]
+- name: gpt-5.5
+  harnesses: [codex, cursor]
+effort:
+- low
+- medium
+- high
+- xhigh
 standingSessions:
   enabled: false
   sessions: []
@@ -142,4 +175,7 @@ reviews:
   criticReviewCount: 1
   stopOnNoNewFindings: true
   escalateOnRepeatFinding: true
-critics: []
+critics:
+- name: codex
+  harness: codex
+  model: gpt-6.1-sol
