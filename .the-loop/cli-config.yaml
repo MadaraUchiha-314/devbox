@@ -70,6 +70,9 @@ routing:
   autoExecuteLabels:
   - 'the-loop: auto-execute'
   - 'the-loop: rr'
+  ci:
+    autofix: true
+    maxAttempts: 3
 harnesses:
 - name: claude
   default: true
@@ -120,6 +123,9 @@ standingSessions:
 polling:
   enabled: true
   intervalSeconds: 60
+  ci:
+    enabled: true
+    intervalSeconds: 300
   sources:
   - provider: github
     monitor:
