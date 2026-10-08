@@ -70,7 +70,7 @@ def test_both_scripts_provision_the_same_tools_in_the_same_order() -> None:
         When their TOOLS lists and main() bodies are compared
         Then they are identical
     """
-    tools = re.compile(r'^TOOLS="([^"]+)"', re.M)
+    tools = re.compile(r'^TOOLS="([^"]+)"', re.MULTILINE)
     assert tools.findall(SETUP.read_text()) == tools.findall(SETUP_ARCH.read_text())
     assert main_steps(SETUP) == main_steps(SETUP_ARCH)
 
