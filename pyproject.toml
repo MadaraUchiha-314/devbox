@@ -6,7 +6,7 @@ requires-python = ">=3.11"
 dependencies = []
 
 [dependency-groups]
-dev = ["commitizen", "pre-commit", "pytest", "pyright", "ruff"]
+dev = ["commitizen", "pre-commit", "pytest", "pyright", "ruff", "shellcheck-py"]
 
 [tool.uv]
 package = false

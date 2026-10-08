@@ -4,15 +4,18 @@ My devbox!
 
 ## Setup
 
-Provision a fresh machine with the whole toolchain — **nvm, node, npm, bun, python3, uv**
-— in one command. Pick the script that matches the box:
+Clone this laptop's setup onto a machine — a cloud workspace or a fresh laptop — in one
+command. It installs zsh + oh-my-zsh, nvm/node/npm, bun, yarn, pnpm, uv, python3,
+the-loop, poetry, go, gh, podman, shellcheck, ttyd, claude and cursor, then writes
+`~/.vimrc` and `~/.zshrc`, creates `/workspace` and runs the startup commands. Pick the
+script that matches the box:
 
 ```sh
-./scripts/setup.sh               # macOS and other Linux — vendor installers into $HOME
-./scripts/setup-arch.sh          # Arch and derivatives — pacman
+./scripts/setup.sh               # Debian/Ubuntu (apt) and macOS (Homebrew)
+./scripts/setup-arch.sh          # Arch and derivatives (pacman)
 ```
 
-Both take the same flags:
+Both take the same flags (`setup-arch.sh` also takes `--noconfirm` for unattended runs):
 
 ```sh
 ./scripts/setup.sh --dry-run     # show the plan, change nothing
@@ -20,16 +23,19 @@ Both take the same flags:
 ```
 
 They are idempotent: anything already installed is reported and left alone, so re-running
-one to top up a partially provisioned box is safe. Neither edits your shell profiles, so
-open a new shell afterwards to pick up whatever is new.
+one to top up a partially provisioned box is safe. PATH and env lines go into one marked
+block in `~/.zshrc` that each run replaces; open a new shell (`exec zsh -l`) afterwards.
 
-`setup.sh` installs only under `$HOME`, never uses `sudo`, and refuses to run as root.
-`setup-arch.sh` installs uv, python, nvm and bun as system packages, so it does use
-`sudo` — for `pacman -S --needed` and nothing else. Node comes from nvm either way.
+System packages, `/workspace` and the login shell need root: the scripts run those
+through `sudo`, or directly when already root (a cloud container). Vendor installers
+never run as root. To clone a repo into `/workspace/<host>/<org>/<repo>`:
 
-macOS is `setup.sh`'s tested target; other Linux runs the same code path. See
-[docs/capabilities/devbox-provisioning.md](docs/capabilities/devbox-provisioning.md) for
-the full behaviour, the pinned vendor versions and how to bump them.
+```sh
+. scripts/setup.sh && clone_repo https://github.com/<org>/<repo>.git
+```
+
+See [docs/capabilities/devbox-provisioning.md](docs/capabilities/devbox-provisioning.md)
+for the full behaviour, the pinned versions and how to bump them.
 
 ## Development
 

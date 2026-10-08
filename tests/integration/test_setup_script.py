@@ -1,6 +1,7 @@
 """Integration tests for `scripts/setup.sh`.
 
-Feature: devbox provisioning — one command installs nvm, node, npm, bun, python3 and uv
+Feature: devbox provisioning — one command installs the whole toolchain (nvm, node, npm,
+bun, python3, uv and the rest of TOOLS in the script) and configures the box
 
 Every scenario runs the real script inside the PATH sandbox from `conftest.py`, so the
 whole suite is offline and hermetic: the dry-run scenarios never reach the network, and
@@ -16,13 +17,26 @@ from pathlib import Path
 
 from conftest import BASH, SCRIPT, Sandbox
 
+#: The original six — the scenarios below that walk "every tool" on a bare sandbox use
+#: these, because curl and the coreutils are part of the sandbox itself.
 TOOLS = ("nvm", "node", "npm", "bun", "python3", "uv")
+
+#: Every tool the script provisions, as its --help and --only know them.
+ALL_TOOLS = tuple(
+    re.search(r'^TOOLS="([^"]+)"', SCRIPT.read_text(), re.MULTILINE).group(1).split()  # type: ignore[union-attr]
+)
 
 #: Hosts the script is allowed to download from. Anything else is a finding, not a nit.
 ALLOWED_HOSTS = {
     "raw.githubusercontent.com",  # nvm — tag-versioned installer
     "astral.sh",  # uv — version-scoped installer
     "bun.sh",  # bun — vendor installer (not itself versioned)
+    "install.python-poetry.org",  # poetry — vendor installer
+    "claude.ai",  # claude — vendor installer
+    "cursor.com",  # cursor — vendor installer
+    "go.dev",  # go — version-pinned release tarball
+    "github.com",  # ttyd — version-pinned release binary
+    "cli.github.com",  # gh — apt keyring and repository
 }
 
 URL_RE = re.compile(r"""https?://[^\s"'`)]+""")
@@ -100,7 +114,8 @@ def test_installer_urls_are_version_pinned(script_source: str) -> None:
     Scenario: A compromised "latest" cannot silently change what executes
         Given the script source
         When the pin constants are read
-        Then nvm and uv are pinned to an exact version and bun pins the version it installs
+        Then nvm, uv, go, ttyd and the-loop are pinned to an exact version and bun pins
+            the version it installs
     """
     assert re.search(r'^NVM_TAG="v\d+\.\d+\.\d+"$', script_source, re.MULTILINE), (
         "NVM_TAG unpinned"
@@ -111,26 +126,42 @@ def test_installer_urls_are_version_pinned(script_source: str) -> None:
     assert re.search(
         r'^BUN_VERSION="bun-v\d+\.\d+\.\d+"$', script_source, re.MULTILINE
     ), "BUN_VERSION unpinned"
-    # ...and the pins are actually used in the URLs, not decorative.
-    assert "${NVM_TAG}" in script_source
-    assert "${UV_VERSION}" in script_source
+    for pin in ("GO_VERSION", "TTYD_VERSION", "THE_LOOP_VERSION"):
+        assert re.search(rf'^{pin}="\d+\.\d+\.\d+"$', script_source, re.MULTILINE), (
+            f"{pin} unpinned"
+        )
+    # ...and the pins are actually used, not decorative.
+    for pin in (
+        "NVM_TAG",
+        "UV_VERSION",
+        "GO_VERSION",
+        "TTYD_VERSION",
+        "THE_LOOP_VERSION",
+    ):
+        assert script_source.count("${" + pin + "}") >= 1, f"{pin} is never used"
 
 
-def test_script_never_uses_sudo(script_source: str) -> None:
+def test_privileges_are_escalated_only_through_one_chokepoint(
+    script_source: str,
+) -> None:
     """
     Requirement: docs/specs/issue-2/requirements.md#security-considerations (boundary 3)
 
-    Scenario: The script never escalates privileges
+    Scenario: Every root-privileged command is visible in one place
         Given the script source
         When it is searched for privilege-escalation commands
-        Then neither sudo nor doas is ever invoked
+        Then sudo is invoked exactly once, inside maybe_sudo, and doas never
 
-    Matched at command position only: the preflight guard *mentions* sudo when telling
-    the operator not to use it, which is the opposite of a finding.
+    System packages, /usr/local, /workspace and the login shell need root; nothing under
+    $HOME does, and no vendor installer is ever run through maybe_sudo.
     """
     code = executable_lines(script_source)
     invocation = re.compile(r"(?m)(?:^|[;&|]\s*|\$\(\s*)\s*(sudo|doas)\b")
-    assert not invocation.search(code), "setup.sh escalates privileges"
+    assert [m.group(1) for m in invocation.finditer(code)] == ["sudo"]
+    assert 'sudo "$@"' in code
+    assert not re.search(r"maybe_sudo\s+(fetch_and_run|\"\$\{BASH\}\")", code), (
+        "a vendor installer runs as root"
+    )
 
 
 def test_single_curl_invocation(script_source: str) -> None:
@@ -195,21 +226,23 @@ def test_uses_private_tempdir(script_source: str) -> None:
         Then it creates a directory with mktemp -d and removes it via an EXIT trap
     """
     assert "mktemp -d" in script_source
-    assert re.search(r"^trap .* EXIT$", script_source, re.MULTILINE), (
+    assert re.search(r"^\s*trap .* EXIT$", script_source, re.MULTILINE), (
         "no EXIT cleanup trap"
     )
 
 
-def test_never_writes_to_shell_profiles(script_source: str) -> None:
+def test_never_writes_to_other_shell_profiles(script_source: str) -> None:
     """
     Requirement: docs/specs/issue-2/requirements.md#R2
 
-    Scenario: The operator's shell profiles are left to the vendor installers
+    Scenario: ~/.zshrc is the only profile the script owns
         Given the script source
         When it is searched for profile writes
-        Then it never appends to .zshrc, .bashrc, .bash_profile or .profile
+        Then it never appends to .bashrc, .bash_profile or .profile
+        And nvm's installer is told not to append to one either
     """
-    for profile in (".zshrc", ".bashrc", ".bash_profile", ".profile"):
+    assert "PROFILE=/dev/null" in script_source
+    for profile in (".bashrc", ".bash_profile", ".profile"):
         assert not re.search(rf">>\s*[^\n]*{re.escape(profile)}", script_source), (
             f"setup.sh writes to {profile}"
         )
@@ -231,7 +264,7 @@ def test_help_lists_every_tool_and_flag(sandbox: Sandbox) -> None:
     """
     result = sandbox.run("--help")
     assert result.returncode == 0, result.stderr
-    for token in (*TOOLS, "--dry-run", "--only", "--help"):
+    for token in (*ALL_TOOLS, "--dry-run", "--only", "--help"):
         assert token in result.stdout, f"--help does not mention {token}"
 
 
@@ -318,19 +351,41 @@ def test_rejects_injection_in_only_flag(sandbox: Sandbox) -> None:
 # --------------------------------------------------------------------------------------
 
 
-def test_refuses_to_run_as_root(sandbox: Sandbox) -> None:
+def test_root_installs_system_packages_without_sudo(sandbox: Sandbox) -> None:
     """
-    Requirement: docs/specs/issue-2/requirements.md#security-considerations (abuse case 1)
-
-    Scenario: A vendor installer never gets system privileges
-        Given a machine where `id -u` reports 0
-        When the script is run
-        Then it exits non-zero and says it refuses to run as root
+    Scenario: A cloud container running as root needs no sudo
+        Given a machine where `id -u` reports 0 and sudo would fail
+        When the script installs a system package
+        Then apt-get runs directly, and sudo is never called
     """
     sandbox.stub("id", stdout="0")
-    result = sandbox.run("--dry-run")
-    assert result.returncode != 0
-    assert "root" in result.stderr.lower()
+    sandbox.stub("sudo", exit_code=1)
+    transcript = sandbox.root / "apt.log"
+    sandbox.script_stub(
+        "apt-get", f'#!/bin/sh\nprintf "%s\\n" "$*" >> {transcript}\nexit 0\n'
+    )
+    sandbox.run("--only", "podman")
+    assert transcript.read_text().splitlines() == ["update -y", "install -y podman"]
+
+
+def test_non_root_installs_system_packages_through_sudo(sandbox: Sandbox) -> None:
+    """
+    Scenario: Anyone else escalates for the package manager, and only for it
+        Given a machine where `id -u` reports 1000
+        When the script installs a system package
+        Then apt-get runs under sudo
+    """
+    sandbox.stub("id", stdout="1000")
+    transcript = sandbox.root / "sudo.log"
+    sandbox.script_stub(
+        "sudo", f'#!/bin/sh\nprintf "%s\\n" "$*" >> {transcript}\nexit 0\n'
+    )
+    sandbox.stub("apt-get")
+    sandbox.run("--only", "podman")
+    assert transcript.read_text().splitlines() == [
+        "apt-get update -y",
+        "apt-get install -y podman",
+    ]
 
 
 def test_fails_closed_when_home_is_unset(sandbox: Sandbox) -> None:
