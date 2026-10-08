@@ -1,7 +1,7 @@
 """Integration tests for `scripts/setup-arch.sh`.
 
-Feature: devbox provisioning on Arch — pacman installs the toolchain instead of a
-vendor installer per tool.
+Feature: devbox provisioning on Arch — pacman installs every tool the official
+repositories carry, instead of a vendor installer per tool.
 
 Every scenario runs the real script inside the PATH sandbox from `conftest.py`, with
 `pacman` and `sudo` replaced by stubs, so the suite installs nothing and needs no root.
@@ -23,8 +23,34 @@ SCRIPT = REPO_ROOT / "scripts" / "setup-arch.sh"
 
 TOOLS = ("nvm", "node", "npm", "bun", "python3", "uv")
 
+#: Every tool the script provisions, as its --help and --only know them.
+ALL_TOOLS = tuple(
+    re.search(r'^TOOLS="([^"]+)"', SCRIPT.read_text(), re.MULTILINE).group(1).split()  # type: ignore[union-attr]
+)
+
 #: Every package the script may ask pacman for, and the tool each one provides.
-PACKAGES = {"uv": "uv", "python3": "python", "nvm": "nvm", "bun": "bun"}
+PACKAGES = {
+    "zsh": "zsh",
+    "wget": "wget",
+    "build-tools": "base-devel git",
+    "uv": "uv",
+    "python3": "python python-pip",
+    "nvm": "nvm",
+    "bun": "bun",
+    "go": "go",
+    "gh": "github-cli",
+    "podman": "podman",
+    "shellcheck": "shellcheck",
+    "ttyd": "ttyd",
+}
+
+#: What Arch does not package, and so is the only thing fetched from a vendor.
+ALLOWED_HOSTS = {
+    "raw.githubusercontent.com",  # oh-my-zsh
+    "install.python-poetry.org",  # poetry
+    "claude.ai",  # claude
+    "cursor.com",  # cursor
+}
 
 URL_RE = re.compile(r"""https?://[^\s"'`)]+""")
 
@@ -128,41 +154,46 @@ def test_script_is_executable() -> None:
     )
 
 
-def test_nothing_is_downloaded(script_source: str) -> None:
+def test_downloads_only_what_arch_does_not_package(script_source: str) -> None:
     """
-    Scenario: The Arch edition has no network surface at all
+    Scenario: The network surface is limited to tools pacman cannot provide
         Given the script source
         When it is searched for downloads
-        Then no URL is fetched and no downloader is invoked
+        Then every URL is https and names a vendor of an unpackaged tool
+        And the one downloader call is the hardened fetch, never piped to a shell
 
     This is the whole reason the pacman edition exists: packages are signed, verified
-    and recorded by the package manager, so there is no curl-to-shell to harden.
+    and recorded by the package manager, so only oh-my-zsh, poetry, claude and cursor
+    need a vendor installer — and those go through the same chokepoint as setup.sh.
     """
     code = executable_lines(script_source)
-    assert not URL_RE.findall(code), "setup-arch.sh downloads something"
-    for downloader in ("curl", "wget"):
-        assert not re.search(rf"(?m)^\s*{downloader}\s", code), (
-            f"setup-arch.sh invokes {downloader}"
-        )
+    urls = URL_RE.findall(code)
+    assert urls
+    for url in urls:
+        assert url.startswith("https://"), f"non-HTTPS URL in setup-arch.sh: {url}"
+        assert url.split("/")[2] in ALLOWED_HOSTS, f"unapproved host: {url}"
+    assert len(re.findall(r"(?m)^\s*curl\s", code)) == 1, "more than one fetch path"
+    assert "--proto-redir '=https'" in code
+    assert not re.search(r"(?m)^\s*wget\s", code), "setup-arch.sh invokes wget"
+    assert "| bash" not in code and "| sh" not in code
 
 
-def test_privileges_are_escalated_only_for_pacman(script_source: str) -> None:
+def test_privileges_are_escalated_only_for_system_steps(script_source: str) -> None:
     """
-    Scenario: sudo is confined to one command
+    Scenario: Root is confined to pacman and the box-wide configuration
         Given the script source
-        When every command-position sudo is inspected
-        Then each one runs pacman and nothing else
+        When every escalation is inspected
+        Then sudo is invoked once, inside maybe_sudo
+        And maybe_sudo only ever runs pacman, the /workspace mkdir/chown, or chsh
 
-    The sibling scripts/setup.sh never escalates at all. This script has to, so the
-    guarantee it can offer instead is that root only ever runs the package manager.
+    Nothing fetched from a vendor ever runs as root.
     """
-    matches = list(ESCALATION_RE.finditer(without_string_literals(script_source)))
-    assert matches, "expected the script to escalate for pacman"
-    for match in matches:
-        assert match.group(1) == "sudo", "doas is not the escalation path in use"
-        assert match.group("rest").lstrip().startswith("pacman"), (
-            f"sudo runs something other than pacman: sudo{match.group('rest')}"
-        )
+    code = without_string_literals(script_source)
+    assert [m.group(1) for m in ESCALATION_RE.finditer(code)] == ["sudo"]
+    assert 'sudo "$@"' in executable_lines(script_source)
+    escalated = re.findall(r"maybe_sudo\s+(\S+)", code)
+    assert escalated
+    assert set(escalated) <= {"pacman", "mkdir", "chown", "chsh"}, escalated
 
 
 def test_pacman_is_never_asked_for_a_partial_upgrade(script_source: str) -> None:
@@ -190,20 +221,20 @@ def test_package_names_cannot_be_read_as_flags(script_source: str) -> None:
         When the pacman invocation is inspected
         Then the package is passed after `--`
     """
-    assert 'pacman "${args[@]}" -- "${package}"' in executable_lines(script_source)
+    assert 'pacman "${args[@]}" -- "$@"' in executable_lines(script_source)
 
 
-def test_never_writes_to_shell_profiles(script_source: str) -> None:
+def test_never_writes_to_other_shell_profiles(script_source: str) -> None:
     """
-    Scenario: The operator's shell profiles stay the operator's
+    Scenario: ~/.zshrc is the only profile the script owns
         Given the script source
         When it is searched for profile writes
-        Then it never appends to .zshrc, .bashrc, .bash_profile or .profile
+        Then it never appends to .bashrc, .bash_profile or .profile
 
-    The packaged nvm writes no init line either, so the script prints the line to add
-    rather than adding it.
+    The packaged nvm writes no init line, so the managed ~/.zshrc block sources it.
     """
-    for profile in (".zshrc", ".bashrc", ".bash_profile", ".profile"):
+    assert "/usr/share/nvm/init-nvm.sh" in script_source
+    for profile in (".bashrc", ".bash_profile", ".profile"):
         assert not re.search(rf">>\s*[^\n]*{re.escape(profile)}", script_source), (
             f"setup-arch.sh writes to {profile}"
         )
@@ -223,7 +254,7 @@ def test_help_lists_every_tool_and_flag(arch: Sandbox) -> None:
     """
     result = run(arch, "--help")
     assert result.returncode == 0, result.stderr
-    for token in (*TOOLS, "--dry-run", "--only", "--noconfirm", "--help"):
+    for token in (*ALL_TOOLS, "--dry-run", "--only", "--noconfirm", "--help"):
         assert token in result.stdout, f"--help does not mention {token}"
 
 
@@ -302,17 +333,19 @@ def test_rejects_injection_in_only_flag(arch: Sandbox) -> None:
 # --------------------------------------------------------------------------------------
 
 
-def test_refuses_to_run_as_root(arch: Sandbox) -> None:
+def test_root_runs_pacman_without_sudo(arch: Sandbox) -> None:
     """
-    Scenario: Node is never installed into /root
-        Given a machine where `id -u` reports 0
-        When the script is run
-        Then it exits non-zero and says it refuses to run as root
+    Scenario: A cloud container running as root needs no sudo
+        Given a machine where `id -u` reports 0 and no sudo on PATH
+        When the script installs a package
+        Then pacman runs directly
     """
     arch.stub("id", stdout="0")
-    result = run(arch, "--dry-run")
-    assert result.returncode != 0
-    assert "root" in result.stderr.lower()
+    (arch.bin / "sudo").unlink()
+    transcript = recording_pacman(arch)
+    result = run(arch, "--only", "podman")
+    assert "sudo" not in result.stderr
+    assert transcript.read_text().strip() == "-S --needed -- podman"
 
 
 def test_fails_closed_without_pacman(arch: Sandbox) -> None:
@@ -364,6 +397,7 @@ def test_fails_closed_when_sudo_is_missing(arch: Sandbox) -> None:
         When the script is run
         Then it exits non-zero and names sudo
     """
+    arch.stub("id", stdout="1000")
     (arch.bin / "sudo").unlink()
     result = run(arch, "--dry-run")
     assert result.returncode != 0
@@ -390,7 +424,7 @@ def test_fails_closed_when_home_is_unset(arch: Sandbox) -> None:
 def test_dry_run_on_bare_machine_plans_every_install(arch: Sandbox) -> None:
     """
     Scenario: A bare machine plans a full provision
-        Given a machine with none of the six tools
+        Given a machine with none of the tools
         When the script is run with --dry-run
         Then it exits 0 and reports a planned install for every tool
     """
@@ -405,7 +439,7 @@ def test_dry_run_on_bare_machine_plans_every_install(arch: Sandbox) -> None:
 def test_dry_run_calls_no_package_manager(arch: Sandbox) -> None:
     """
     Scenario: Planning is free of side effects
-        Given a machine with none of the six tools
+        Given a machine with none of the tools
         When the script is run with --dry-run
         Then pacman is never invoked and HOME is unchanged
     """
@@ -420,7 +454,7 @@ def test_dry_run_calls_no_package_manager(arch: Sandbox) -> None:
 def test_dry_run_with_everything_present_plans_only_skips(arch: Sandbox) -> None:
     """
     Scenario: A provisioned machine is left alone (idempotency)
-        Given a machine where all six tools are already installed
+        Given a machine where all tools are already installed
         When the script is run with --dry-run
         Then every tool is reported as already present, with its version, and nothing is planned
     """
@@ -437,7 +471,7 @@ def test_dry_run_with_everything_present_plans_only_skips(arch: Sandbox) -> None
 def test_provisioned_box_is_not_told_to_open_a_new_shell(arch: Sandbox) -> None:
     """
     Scenario: A re-run on a provisioned box hands out no busywork
-        Given a machine where all six tools are already installed
+        Given a machine where all tools are already installed
         When the script is run for real
         Then it exits 0, says there is nothing to do, and does not ask for a new shell
     """
@@ -485,7 +519,7 @@ def test_stale_python3_is_not_accepted(arch: Sandbox) -> None:
 def test_only_acts_on_a_single_tool(arch: Sandbox) -> None:
     """
     Scenario: --only narrows the run to one tool
-        Given a machine with none of the six tools
+        Given a machine with none of the tools
         When the script is run with --dry-run --only bun
         Then bun is the only tool in the summary
     """
@@ -509,7 +543,7 @@ def test_each_tool_maps_to_its_official_package(
 ) -> None:
     """
     Scenario: Every packaged tool is installed from the official repositories
-        Given a machine with none of the six tools
+        Given a machine with none of the tools
         When the script is run for real with --only <tool>
         Then pacman is asked for that tool's package, with --needed and an end-of-options marker
     """
@@ -522,7 +556,7 @@ def test_each_tool_maps_to_its_official_package(
 def test_pacman_prompts_unless_noconfirm_is_asked_for(arch: Sandbox) -> None:
     """
     Scenario: An unattended run is opt-in
-        Given a machine with none of the six tools
+        Given a machine with none of the tools
         When the script is run with and without --noconfirm
         Then --noconfirm reaches pacman only when it was asked for
     """

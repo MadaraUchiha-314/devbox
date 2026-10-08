@@ -1,4 +1,4 @@
-"""Test harness for `scripts/setup.sh`.
+"""Test harness for `scripts/setup.sh` and `scripts/setup-arch.sh`.
 
 The script under test exists to mutate the machine it runs on, so the tests must
 exercise it without installing anything. Every test therefore runs it inside a **PATH
@@ -14,6 +14,7 @@ otherwise make a bare box look provisioned.
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -24,13 +25,37 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = REPO_ROOT / "scripts" / "setup.sh"
 
-#: The only external commands `scripts/setup.sh` may rely on. Keeping this list short is
-#: itself a design constraint: a new entry here means the script grew a dependency, which
-#: is a thing to notice in review rather than discover on a bare machine.
-SANDBOX_UTILS = ("id", "curl", "mktemp", "rm", "uname")
+#: The only external commands the setup scripts may rely on. Keeping this list short is
+#: itself a design constraint: a new entry here means a script grew a dependency, which
+#: is a thing to notice in review rather than discover on a bare machine. Everything
+#: past `uname` is POSIX coreutils/grep/sed, used to write ~/.vimrc, ~/.zshrc and its
+#: managed block.
+SANDBOX_UTILS = (
+    "id",
+    "curl",
+    "mktemp",
+    "rm",
+    "uname",
+    "dirname",
+    "cat",
+    "touch",
+    "grep",
+    "sed",
+    "mv",
+    "head",
+    "mkdir",
+    "ln",
+    "cut",
+    "chown",
+)
 
 #: Resolved once against the *real* PATH, before any sandboxing.
 BASH = shutil.which("bash") or "/bin/bash"
+
+#: The-loop pin, read from the script so the stubs below track a bump.
+THE_LOOP_VERSION = re.search(
+    r'^THE_LOOP_VERSION="([^"]+)"', SCRIPT.read_text(), re.MULTILINE
+).group(1)  # type: ignore[union-attr]
 
 
 @dataclass
@@ -80,13 +105,39 @@ class Sandbox:
         return nvm_sh
 
     def stub_all_tools(self) -> None:
-        """Make every one of the six tools look already installed."""
-        self.stub("uv", stdout="uv 0.12.0")
+        """Make every tool the scripts provision look already installed."""
         self.stub("python3", stdout="Python 3.13.1")
         self.stub("node", stdout="v22.20.0")
         self.stub("npm", stdout="10.9.4")
         self.stub("bun", stdout="1.3.14")
         self.install_nvm_stub()
+        for name in (
+            "zsh", "wget", "cc", "make", "git", "yarn", "pnpm", "the-loop",
+            "poetry", "go", "gh", "podman", "shellcheck", "ttyd", "claude", "cursor",
+        ):  # fmt: skip
+            self.stub(name, stdout=f"{name} 1.0.0")
+        (self.home / ".oh-my-zsh").mkdir(exist_ok=True)
+
+        # the-loop counts as installed only at the pinned version, read from the uv tool
+        # venv's receipt; `uv tool dir` says where that venv lives.
+        tool_dir = self.root / "uv-tools"
+        receipt = tool_dir / "the-loopy-one" / "uv-receipt.toml"
+        receipt.parent.mkdir(parents=True, exist_ok=True)
+        receipt.write_text(
+            f'requirements = [{{ name = "the-loopy-one", specifier = "=={THE_LOOP_VERSION}" }}]\n'
+        )
+        self.script_stub(
+            "uv",
+            "#!/bin/sh\n"
+            f'if [ "$1 $2" = "tool dir" ]; then printf "%s\\n" "{tool_dir}"; exit 0; fi\n'
+            'printf "%s\\n" "uv 0.12.0"\n',
+        )
+
+        plugins = self.home / ".claude" / "plugins"
+        plugins.mkdir(parents=True, exist_ok=True)
+        (plugins / "installed_plugins.json").write_text(
+            '{"plugins": {"the-loop@the-loop": []}}'
+        )
 
     def run(
         self,
@@ -99,6 +150,9 @@ class Sandbox:
             "PATH": str(self.bin),
             "HOME": str(self.home),
             "TMPDIR": str(self.root / "tmp"),
+            # Never the host's own /workspace or /usr/local/go.
+            "DEVBOX_WORKSPACE": str(self.root / "workspace"),
+            "DEVBOX_GO_ROOT": str(self.root / "go"),
         }
         if env:
             environment.update(env)
@@ -130,7 +184,12 @@ def sandbox(tmp_path: Path) -> Sandbox:
         assert real is not None, f"sandbox utility {util!r} not found on this machine"
         os.symlink(real, bin_dir / util)
 
-    return Sandbox(root=tmp_path, bin=bin_dir, home=home_dir)
+    sandbox = Sandbox(root=tmp_path, bin=bin_dir, home=home_dir)
+    # A full run ends by setting the login shell: never let it reach the real chsh.
+    sandbox.stub("chsh")
+    # Root-only steps (/workspace) go through sudo when not root: let it pass through.
+    sandbox.script_stub("sudo", '#!/bin/sh\nexec "$@"\n')
+    return sandbox
 
 
 @pytest.fixture(scope="session")
