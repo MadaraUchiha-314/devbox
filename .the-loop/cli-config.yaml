@@ -1,4 +1,4 @@
-version: 0.11.0
+version: 0.12.0
 env:
   file: ~/.the-loop/the-loop.env
 state:
@@ -176,6 +176,11 @@ integrations:
 channels:
   slack:
     enabled: false
+  jira:
+    enabled: false
+    subscribe:
+    - session.awaiting_input
+    verbosity: normal
 repositories:
 - MadaraUchiha-314/devbox
 - MadaraUchiha-314/the-loop
