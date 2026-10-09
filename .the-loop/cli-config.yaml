@@ -186,6 +186,7 @@ repositories:
 - MadaraUchiha-314/the-loop
 - MadaraUchiha-314/the-loop-testing
 - MadaraUchiha-314/yaah
+- MadaraUchiha-314/tiny-harness
 reviews:
   selfReviewCount: 2
   criticReviewCount: 1
