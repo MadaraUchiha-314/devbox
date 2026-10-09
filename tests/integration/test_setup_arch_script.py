@@ -32,6 +32,7 @@ ALL_TOOLS = tuple(
 PACKAGES = {
     "zsh": "zsh",
     "wget": "wget",
+    "vim": "vim",
     "build-tools": "base-devel git",
     "uv": "uv",
     "python3": "python python-pip",

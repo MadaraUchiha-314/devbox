@@ -3,7 +3,7 @@
 # devbox setup, Arch edition — clone this laptop's settings and installations onto an
 # Arch (or Arch-derived) machine:
 #
-#     shell      zsh · oh-my-zsh · wget · curl · build tools
+#     shell      zsh · oh-my-zsh · wget · curl · vim · build tools
 #     node       nvm · node · npm · bun · yarn · pnpm
 #     python     uv · python3 (+ pip) · the-loop · poetry
 #     system     go · gh · podman · shellcheck · ttyd
@@ -39,6 +39,7 @@ set -euo pipefail
 # script asserts is a floor for python3, matching this repo's pyproject.toml.
 #
 #   zsh, wget, curl   core/extra        go          extra/go
+#   vim               extra/vim
 #   build-tools       core/base-devel   gh          extra/github-cli
 #   uv                extra/uv          podman      extra/podman
 #   python3           core/python       shellcheck  extra/shellcheck
@@ -74,7 +75,7 @@ NVM_SYSTEM_INIT="/usr/share/nvm/init-nvm.sh"
 # Dependency order: nvm provides node, node brings npm (and corepack, for yarn/pnpm); uv
 # installs the-loop; poetry's installer needs python3; the-loop's claude plugin needs
 # claude.
-TOOLS="zsh wget curl build-tools oh-my-zsh nvm node npm bun yarn pnpm uv python3 the-loop poetry go gh podman shellcheck ttyd claude the-loop-plugin cursor"
+TOOLS="zsh wget curl vim build-tools oh-my-zsh nvm node npm bun yarn pnpm uv python3 the-loop poetry go gh podman shellcheck ttyd claude the-loop-plugin cursor"
 
 # Nice-to-haves: a failed install is reported in the summary and the run goes on, rather
 # than aborting a provision that is otherwise fine.
@@ -394,6 +395,7 @@ preflight() {
 detect_zsh() { have zsh; }
 detect_wget() { have wget; }
 detect_curl() { have curl; }
+detect_vim() { have vim; }
 detect_build_tools() { have cc && have make && have git; }
 detect_oh_my_zsh() { [ -d "${HOME}/.oh-my-zsh" ]; }
 detect_uv() { have uv; }
@@ -487,6 +489,7 @@ version_of() {
 version_zsh() { version_of zsh --version; }
 version_wget() { version_of wget --version; }
 version_curl() { version_of curl --version; }
+version_vim() { version_of vim --version; }
 version_build_tools() { version_of cc --version; }
 version_oh_my_zsh() { printf 'installed'; }
 version_bun() { bun --version 2>/dev/null || printf 'unknown'; }
@@ -559,6 +562,7 @@ version_nvm() {
 install_zsh() { pacman_install zsh; }
 install_wget() { pacman_install wget; }
 install_curl() { pacman_install curl; }
+install_vim() { pacman_install vim; }
 install_build_tools() { pacman_install base-devel git; }
 
 # The upstream installer, run bare, is interactive and would overwrite the ~/.zshrc this

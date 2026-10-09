@@ -112,7 +112,7 @@ class Sandbox:
         self.stub("bun", stdout="1.3.14")
         self.install_nvm_stub()
         for name in (
-            "zsh", "wget", "cc", "make", "git", "yarn", "pnpm", "the-loop",
+            "zsh", "wget", "vim", "cc", "make", "git", "yarn", "pnpm", "the-loop",
             "poetry", "go", "gh", "podman", "shellcheck", "ttyd", "claude", "cursor",
         ):  # fmt: skip
             self.stub(name, stdout=f"{name} 1.0.0")

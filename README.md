@@ -5,7 +5,7 @@ My devbox!
 ## Setup
 
 Clone this laptop's setup onto a machine — a cloud workspace or a fresh laptop — in one
-command. It installs zsh + oh-my-zsh, nvm/node/npm, bun, yarn, pnpm, uv, python3,
+command. It installs zsh + oh-my-zsh, vim, nvm/node/npm, bun, yarn, pnpm, uv, python3,
 the-loop, poetry, go, gh, podman, shellcheck, ttyd, claude and cursor, then writes
 `~/.vimrc` and `~/.zshrc`, creates `/workspace` and runs the startup commands. Pick the
 script that matches the box:

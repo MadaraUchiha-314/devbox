@@ -3,7 +3,7 @@
 # devbox setup — clone this laptop's settings and installations onto a machine (a
 # remote cloud workspace, or a fresh laptop):
 #
-#     shell      zsh · oh-my-zsh · wget · curl · build tools
+#     shell      zsh · oh-my-zsh · wget · curl · vim · build tools
 #     node       nvm · node · npm · bun · yarn · pnpm
 #     python     uv · python3 (+ pip, venv) · the-loop · poetry
 #     system     go · gh · podman · shellcheck · ttyd
@@ -77,7 +77,7 @@ GH_KEYRING_URL="https://cli.github.com/packages/githubcli-archive-keyring.gpg"
 # Dependency order: nvm provides node, node brings npm (and corepack, for yarn/pnpm); uv
 # provides python3 when the system has none, and installs the-loop; poetry's installer
 # needs python3; the-loop's claude plugin needs claude.
-TOOLS="zsh wget curl build-tools oh-my-zsh nvm node npm bun yarn pnpm uv python3 the-loop poetry go gh podman shellcheck ttyd claude the-loop-plugin cursor"
+TOOLS="zsh wget curl vim build-tools oh-my-zsh nvm node npm bun yarn pnpm uv python3 the-loop poetry go gh podman shellcheck ttyd claude the-loop-plugin cursor"
 
 # Nice-to-haves: a failed install is reported in the summary and the run goes on, rather
 # than aborting a provision that is otherwise fine.
@@ -371,6 +371,7 @@ preflight() {
 detect_zsh() { have zsh; }
 detect_wget() { have wget; }
 detect_curl() { have curl; }
+detect_vim() { have vim; }
 detect_build_tools() { have cc && have make && have git; }
 detect_oh_my_zsh() { [ -d "${HOME}/.oh-my-zsh" ]; }
 detect_uv() { have uv; }
@@ -437,6 +438,7 @@ version_of() {
 version_zsh() { version_of zsh --version; }
 version_wget() { version_of wget --version; }
 version_curl() { version_of curl --version; }
+version_vim() { version_of vim --version; }
 version_build_tools() { version_of cc --version; }
 version_oh_my_zsh() { printf 'installed'; }
 version_bun() { bun --version 2>/dev/null || printf 'unknown'; }
@@ -505,6 +507,7 @@ version_nvm() {
 install_zsh() { system_install zsh; }
 install_wget() { system_install wget; }
 install_curl() { system_install curl; }
+install_vim() { system_install vim; }
 
 install_build_tools() {
     if [ "$(uname -s)" = "Darwin" ]; then
