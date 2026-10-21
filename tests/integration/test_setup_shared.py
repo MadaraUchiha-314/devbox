@@ -10,6 +10,7 @@ into it through DEVBOX_WORKSPACE.
 
 from __future__ import annotations
 
+import json
 import re
 import shlex
 import shutil
@@ -133,6 +134,7 @@ def test_only_run_skips_the_box_wide_steps(sandbox: Sandbox, script: Path) -> No
     assert result.returncode == 0, result.stderr
     assert BEGIN in (sandbox.home / ".zshrc").read_text()
     assert not (sandbox.root / "workspace").exists()
+    assert not (sandbox.home / ".claude" / "settings.json").exists()
 
 
 @by_script
@@ -146,6 +148,73 @@ def test_optional_tool_failure_does_not_abort(sandbox: Sandbox, script: Path) ->
     result = run(sandbox, script, "--only", "the-loop-plugin")
     assert result.returncode == 0, result.stderr
     assert "failed (optional)" in result.stdout
+
+
+@by_script
+def test_full_run_points_claude_temp_dir_at_disk(
+    sandbox: Sandbox, script: Path
+) -> None:
+    """
+    Scenario: Claude Code's temp dir moves off the RAM-backed /tmp
+        Given a provisioned machine whose ~/.claude/settings.json has other settings
+        When the script is run
+        Then settings.json sets env.CLAUDE_CODE_TMPDIR to ~/.cache/claude-tmp
+        And that directory exists, and the other settings survive
+    """
+    sandbox.stub_all_tools()
+    settings = sandbox.home / ".claude" / "settings.json"
+    settings.write_text(json.dumps({"theme": "dark", "env": {"FOO": "1"}}))
+
+    result = run(sandbox, script)
+    assert result.returncode == 0, result.stderr
+
+    tmpdir = sandbox.home / ".cache" / "claude-tmp"
+    assert json.loads(settings.read_text()) == {
+        "theme": "dark",
+        "env": {"FOO": "1", "CLAUDE_CODE_TMPDIR": str(tmpdir)},
+    }
+    assert tmpdir.is_dir()
+
+
+@by_script
+def test_operator_claude_temp_dir_is_kept(sandbox: Sandbox, script: Path) -> None:
+    """
+    Scenario: A temp dir the operator chose is not overwritten
+        Given settings.json already sets env.CLAUDE_CODE_TMPDIR
+        When the script is run
+        Then settings.json is unchanged and the operator's directory is created
+    """
+    sandbox.stub_all_tools()
+    mine = sandbox.root / "scratch"
+    settings = sandbox.home / ".claude" / "settings.json"
+    original = json.dumps({"env": {"CLAUDE_CODE_TMPDIR": str(mine)}})
+    settings.write_text(original)
+
+    result = run(sandbox, script)
+    assert result.returncode == 0, result.stderr
+    assert settings.read_text() == original
+    assert mine.is_dir()
+    assert not (sandbox.home / ".cache" / "claude-tmp").exists()
+
+
+@by_script
+def test_unreadable_claude_settings_are_left_alone(
+    sandbox: Sandbox, script: Path
+) -> None:
+    """
+    Scenario: settings.json that is not valid JSON is reported, never clobbered
+        Given a settings.json that does not parse
+        When the script is run
+        Then it still exits zero, warns, and leaves the file as it was
+    """
+    sandbox.stub_all_tools()
+    settings = sandbox.home / ".claude" / "settings.json"
+    settings.write_text("{ not json")
+
+    result = run(sandbox, script)
+    assert result.returncode == 0, result.stderr
+    assert "could not set the claude temp dir" in result.stderr
+    assert settings.read_text() == "{ not json"
 
 
 # --------------------------------------------------------------------------------------

@@ -7,8 +7,9 @@ My devbox!
 Clone this laptop's setup onto a machine — a cloud workspace or a fresh laptop — in one
 command. It installs zsh + oh-my-zsh, vim, nvm/node/npm, bun, yarn, pnpm, uv, python3,
 the-loop, poetry, go, gh, podman, shellcheck, ttyd, claude and cursor, then writes
-`~/.vimrc` and `~/.zshrc`, creates `/workspace` and runs the startup commands. Pick the
-script that matches the box:
+`~/.vimrc` and `~/.zshrc`, creates `/workspace`, points Claude Code's temp dir at
+`~/.cache/claude-tmp` (not the RAM-backed `/tmp`) and runs the startup commands. Pick
+the script that matches the box:
 
 ```sh
 ./scripts/setup.sh               # Debian/Ubuntu (apt) and macOS (Homebrew)

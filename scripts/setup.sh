@@ -10,7 +10,8 @@
 #     agents     claude · the-loop (claude plugin) · cursor
 #
 # and then configures it: ~/.vimrc and ~/.zshrc, a managed PATH/env block in ~/.zshrc,
-# /workspace with the <host>/<org>/<repo> clone layout, and the startup commands
+# /workspace with the <host>/<org>/<repo> clone layout, claude's temp dir on disk
+# (~/.cache/claude-tmp, not the RAM-backed /tmp), and the startup commands
 # (claude --upgrade, cursor --upgrade, keepalive).
 #
 # Tools are walked in dependency order and each one is detected before it is installed,
@@ -101,6 +102,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ZSHRC="${HOME}/.zshrc"
 VIMRC="${HOME}/.vimrc"
 WORKSPACE="${DEVBOX_WORKSPACE:-/workspace}"
+CLAUDE_SETTINGS="${HOME}/.claude/settings.json"
+CLAUDE_TMPDIR="${HOME}/.cache/claude-tmp"
 # Overridable for one reason only: the test suite must not find the host's own go.
 GO_ROOT="${DEVBOX_GO_ROOT:-/usr/local/go}"
 
@@ -747,6 +750,38 @@ setup_workspace() {
     fi
 }
 
+# Claude Code keeps per-session scratchpads (often hundreds of MB of node_modules) under
+# its temp dir, /tmp by default. Where /tmp is a RAM-backed tmpfs with a per-user quota
+# (systemd's default), a few long sessions fill it and every later write fails with
+# EDQUOT — the-loop's comment delivery included. Point it at disk, through the user
+# settings so every claude process sees it however it was launched. A value the
+# operator already set is kept.
+configure_claude_tmpdir() {
+    if ! have python3; then
+        warn "python3 missing; skipping the claude temp dir setting"
+        return 0
+    fi
+    local effective
+    if effective="$(python3 - "${CLAUDE_SETTINGS}" "${CLAUDE_TMPDIR}" <<'EOF'
+import json, sys
+from pathlib import Path
+
+path, tmpdir = Path(sys.argv[1]), sys.argv[2]
+settings = json.loads(path.read_text()) if path.exists() else {}
+env = settings.setdefault("env", {})
+if not env.get("CLAUDE_CODE_TMPDIR"):
+    env["CLAUDE_CODE_TMPDIR"] = tmpdir
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(settings, indent=2) + "\n")
+print(env["CLAUDE_CODE_TMPDIR"])
+EOF
+    )" && mkdir -p "${effective}"; then
+        ok "claude temp dir is ${effective}"
+    else
+        warn "could not set the claude temp dir in ${CLAUDE_SETTINGS}"
+    fi
+}
+
 # clone_repo <repo-url>
 #   Parses host/org/repo from an https or ssh git URL and clones into
 #   /workspace/<host>/<org>/<repo>. Skips if the repo already exists.
@@ -872,7 +907,7 @@ provision() {
 
 configure() {
     if [ "${DRY_RUN}" -eq 1 ]; then
-        log "would write ~/.vimrc, ~/.zshrc and its managed block, set the login shell, create ${WORKSPACE} and run the startup commands"
+        log "would write ~/.vimrc, ~/.zshrc and its managed block, set the login shell, create ${WORKSPACE}, point claude's temp dir at ${CLAUDE_TMPDIR} and run the startup commands"
         return 0
     fi
     write_zshrc_block
@@ -880,6 +915,7 @@ configure() {
     if [ "${SELECTED}" = "${TOOLS}" ]; then
         set_login_shell
         setup_workspace
+        configure_claude_tmpdir
         run_startup_commands
     fi
 }

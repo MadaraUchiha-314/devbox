@@ -51,6 +51,7 @@ SANDBOX_UTILS = (
 
 #: Resolved once against the *real* PATH, before any sandboxing.
 BASH = shutil.which("bash") or "/bin/bash"
+PYTHON3 = shutil.which("python3") or "/usr/bin/python3"
 
 #: The-loop pin, read from the script so the stubs below track a bump.
 THE_LOOP_VERSION = re.search(
@@ -106,7 +107,14 @@ class Sandbox:
 
     def stub_all_tools(self) -> None:
         """Make every tool the scripts provision look already installed."""
-        self.stub("python3", stdout="Python 3.13.1")
+        # A fixed version for detection; anything else (the scripts' own JSON edits)
+        # runs on the real interpreter.
+        self.script_stub(
+            "python3",
+            "#!/bin/sh\n"
+            'if [ "$1" = "-V" ]; then printf "%s\\n" "Python 3.13.1"; exit 0; fi\n'
+            f'exec {PYTHON3} "$@"\n',
+        )
         self.stub("node", stdout="v22.20.0")
         self.stub("npm", stdout="10.9.4")
         self.stub("bun", stdout="1.3.14")

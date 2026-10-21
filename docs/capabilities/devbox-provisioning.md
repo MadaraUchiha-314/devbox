@@ -60,6 +60,11 @@ is the one introduced in issue-2.
 - On a full run (not `--only`, not `--dry-run`) the system SHALL set zsh as the login
   shell, create `/workspace` (pre-trusting it for Claude Code when
   `scripts/seed-claude-trust.py` exists), and run the startup commands.
+- On a full run the system SHALL set `env.CLAUDE_CODE_TMPDIR` in
+  `~/.claude/settings.json` to `~/.cache/claude-tmp` and create it, so Claude Code's
+  session scratchpads live on disk instead of the RAM-backed `/tmp` tmpfs and its
+  per-user quota. A value already set is kept; a settings file that does not parse is
+  reported and left untouched.
 - Root-privileged commands SHALL go through `maybe_sudo` alone: run directly as root (a
   cloud container), via `sudo` otherwise. Vendor installers never run as root.
 - WHEN a download fails, returns a non-success status, or cannot use HTTPS THEN the
@@ -149,3 +154,4 @@ Pointers, not copies:
 | issue-2   | Introduced `scripts/setup.sh`: installs nvm/node/npm/bun/python3/uv, idempotent, `--dry-run`/`--only`, root refusal, pinned HTTPS-only vendor installers downloaded before execution                                                                                                                                                                    | [spec](../specs/issue-2/), [issue #2](https://github.com/MadaraUchiha-314/devbox/issues/2) |
 | —         | Added `scripts/setup-arch.sh`: the same contract on Arch and its derivatives, installing uv/python/nvm/bun with `sudo pacman -S --needed` and no downloads at all; node still from nvm                                                                                                                                                                  | —                                                                                          |
 | —         | Merged in the provisioning gist: zsh/oh-my-zsh, wget, build tools, yarn, pnpm, the-loop (CLI + plugin), poetry, go, gh, podman, shellcheck, ttyd, claude, cursor; dotfiles, managed `~/.zshrc` block, login shell, `/workspace` + `clone_repo`, startup commands. Root is now allowed (cloud containers) and system steps escalate through `maybe_sudo` | —                                                                                          |
+| —         | Claude Code's temp dir moves to `~/.cache/claude-tmp` via `~/.claude/settings.json`: its scratchpads had filled the per-user quota on systemd's tmpfs `/tmp`, failing every later write (the-loop's comment delivery included) with EDQUOT                                                                                                              | —                                                                                          |
