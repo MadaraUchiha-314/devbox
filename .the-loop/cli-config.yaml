@@ -1,6 +1,12 @@
 version: 0.12.0
 env:
   file: ~/.the-loop/the-loop.env
+instance:
+  name: rr-devbox-home
+  role: worker
+  scope:
+    mode: open
+    workItems: []
 state:
   root: .the-loop
 webhooks:
@@ -26,13 +32,21 @@ routing:
       pause: the-loop pause
       resume: the-loop resume
       do: the-loop do
+      review: the-loop review
       cleanup: the-loop cleanup
+      add-collaborator: the-loop add-collaborator
+      remove-collaborator: the-loop remove-collaborator
+      add-channel: the-loop add-channel
+      remove-channel: the-loop remove-channel
   interaction:
     mode: work-item
   graph:
     enabled: true
+    specDir: docs/specs
   authorizedUsers:
-  - MadaraUchiha-314
+  - name: rr
+    github: MadaraUchiha-314
+    slack: U0C2WD4UTV3
   spawnWorkdir: .
   workspace:
     root: ~/.the-loop/workspace
@@ -64,6 +78,7 @@ routing:
     resumeOnRespawn: true
     resumeProbeSeconds: 2
     killHarnessOnClose: true
+    sessionPerPr: cross-repository
     harnessKillGraceSeconds: 5
   announce:
     enabled: true
@@ -139,7 +154,7 @@ service:
     enabled: true
     maxSubscribers: 8
     keepAliveSeconds: 15
-  hostIngresses: false
+  hostIngresses: true
   cors:
     allowOrigins:
     - https://madarauchiha-314.github.io
@@ -152,6 +167,16 @@ service:
     - Content-Type
     allowCredentials: false
     allowPrivateNetwork: true
+gateway:
+  url: http://127.0.0.1:8790
+  pollIntervalSeconds: 5
+  longPollSeconds: 20
+  actors:
+    github:
+    - MadaraUchiha-314
+    slack:
+    - U0C2WD4UTV3
+    jira: []
 eventLog:
   enabled: true
   path: .the-loop/logs/events.jsonl
@@ -174,8 +199,40 @@ integrations:
       - GITHUB_TOKEN
       baseUrl: https://api.github.com
 channels:
+  ledger: github
   slack:
-    enabled: false
+    enabled: true
+    botTokenEnv: THE_LOOP_SLACK_BOT_TOKEN
+    appTokenEnv: THE_LOOP_SLACK_APP_TOKEN
+    channel: C0CA0P17W59
+    subscribe:
+    - session.awaiting_input
+    - phase-approval-pending
+    - pr-review-pending
+    - decision-pending
+    - security-sign-off-pending
+    - conflict-escalated
+    - work-item-complete
+    - phase.started
+    - phase.completed
+    - work-item.closed
+    - comment.agent
+    - comment.human
+    publish:
+    - work-item.reply
+    - gate.feedback
+    - control.command
+    - work-item.create
+    - instance.command
+    - standing.command
+    - context.added
+    - decision.recorded
+    verbosity: normal
+    kickoff:
+      repo: MadaraUchiha-314/the-loop-testing
+      labels: []
+    read:
+      mode: gateway
   jira:
     enabled: false
     subscribe:
@@ -187,6 +244,7 @@ repositories:
 - MadaraUchiha-314/the-loop-testing
 - MadaraUchiha-314/yaah
 - MadaraUchiha-314/tiny-harness
+hooks: []
 reviews:
   selfReviewCount: 2
   criticReviewCount: 1
