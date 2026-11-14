@@ -103,7 +103,7 @@ harnesses:
   args:
   - --force
 models:
-- name: claude-fable-5-1
+- name: claude-fable-5-2
   harnesses: [claude]
 - name: claude-opus-5-5
   harnesses: [claude]
@@ -244,6 +244,7 @@ repositories:
 - MadaraUchiha-314/the-loop-testing
 - MadaraUchiha-314/yaah
 - MadaraUchiha-314/tiny-harness
+- MadaraUchiha-314/rusty-harness
 hooks: []
 reviews:
   selfReviewCount: 2
@@ -254,3 +255,4 @@ critics:
 - name: codex
   harness: codex
   model: gpt-6.1-sol
+  timeoutSeconds: 900
