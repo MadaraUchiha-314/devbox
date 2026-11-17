@@ -1,6 +1,14 @@
 version: 0.12.0
 env:
   file: ~/.the-loop/the-loop.env
+  sessionPassthrough: []
+  # issue-533: credentials handed to spawned sessions via a per-spawn 0600 file, never argv.
+  sessionCredentials:
+  - name: GH_TOKEN
+    from: THE_LOOP_GH_TOKEN   # the daemon's own token; the-loop warns about sharing it
+  - name: JIRA_SANDBOX_SITE
+  - name: JIRA_EMAIL
+  - name: JIRA_API_TOKEN
 instance:
   name: rr-devbox-home
   role: worker
